@@ -1,0 +1,53 @@
+name: MerX - Web
+on: [push]
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+    outputs:
+      uuid: ${{ steps.uuid.outputs.value }}
+    strategy:
+      matrix:
+        node: [16]
+    name: E2E on Node v${{ matrix.node }}
+    steps:
+      - name: Setup Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node -v
+
+      - name: Generate unique ID 💎
+        id: uuid
+        run: echo "::set-output name=value::sha-$GITHUB_SHA-time-$(date +"%s")"
+
+      - name: Print unique ID 🖨`
+        run: echo "generated id ${{ steps.uuid.outputs.value }}"
+
+      - name: Checkout ✔️
+        uses: actions/checkout@v2
+
+      - name: Install dependencies ⌛
+        run: npm ci
+
+      - name: Cypress run 🚀
+        uses: cypress-io/github-action@v4
+        with:
+          record: true
+          tag: node-${{ matrix.node }}
+          parallel: true
+          ci-build-id: ${{ needs.prepare.outputs.uuid }}
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v2
+        if: always() #failure()
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots
+
+      - uses: actions/upload-artifact@v2
+        if: always() #failure()
+        with:
+          name: cypress-videos
+          path: cypress/videos
